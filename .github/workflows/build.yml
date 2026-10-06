@@ -1,0 +1,31 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build all targets
+        run: make
+
+      - name: Smoke test single_process_server
+        run: |
+          ./single_process_server &
+          SERVER_PID=$!
+          sleep 1
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/hello.html || true)
+          kill $SERVER_PID 2>/dev/null || true
+          wait $SERVER_PID 2>/dev/null || true
+          if [ "$RESPONSE" = "200" ]; then
+            echo "Smoke test passed: HTTP $RESPONSE"
+          else
+            echo "Smoke test failed: HTTP $RESPONSE"
+            exit 1
+          fi
